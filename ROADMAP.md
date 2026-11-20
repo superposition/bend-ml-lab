@@ -49,7 +49,7 @@ unless stated; see the linked docs for the full tables.
 | [#8](https://github.com/superposition/bend-ml-lab/issues/8) | Batched trainer: matmul path vs scalar SGD | training, bench | M | Todo |
 | [#9](https://github.com/superposition/bend-ml-lab/issues/9) | Parallel batch gradients with fork/join | training, runtime | L | Todo |
 | [#10](https://github.com/superposition/bend-ml-lab/issues/10) | Real-checkpoint WSP analyst (export → Bend → import → judge) | WSP | L | Todo |
-| [#11](https://github.com/superposition/bend-ml-lab/issues/11) | Requantization noise floor for a no-op WSP edit | WSP, numerics | M | Todo |
+| [#11](https://github.com/superposition/bend-ml-lab/issues/11) | Requantization noise floor for a no-op WSP edit | WSP, numerics | M | Done |
 | [#12](https://github.com/superposition/bend-ml-lab/issues/12) | Same engine vs second engine: how much does the judge move a WSP score? | WSP, bench | M | Todo |
 | [#13](https://github.com/superposition/bend-ml-lab/issues/13) | Checkpoint and resume an epoch session | training | M | Done |
 | [#14](https://github.com/superposition/bend-ml-lab/issues/14) | Contiguous device tensor runtime (remove the tree for GPU) | runtime, GPU | L | Done (ceiling measured) |
