@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Install Bend 2.0.40
+        run: |
+          mkdir -p "$HOME/.bend"
+          curl -fsSL "https://github.com/bendlang/bend/releases/download/v2.0.40/bend-2.0.40-linux-x64.tar.gz" -o /tmp/bend.tar.gz
+          tar -xzf /tmp/bend.tar.gz -C "$HOME/.bend"
+          echo "$HOME/.bend/bin" >> "$GITHUB_PATH"
+          "$HOME/.bend/bin/bend" version
+      - name: Check and test
+        run: |
+          bend src/tensor.bend --check-only
+          bend src/mlp.bend --check-only
+          bend PROOF.bend
+          bend tests/fuzz_tensor.bend | tee fuzz.txt
+          ! grep -q ',False' fuzz.txt
+          bend tests/kernel_contracts.bend | tee kernels.txt
+          ! grep -q ',False' kernels.txt
+          bend tests/range_test.bend > /dev/null
+          bend train/mlp_batch.bend
+
+  verdict:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bend 2.0.40
+        run: |
+          mkdir -p "$HOME/.bend"
+          curl -fsSL "https://github.com/bendlang/bend/releases/download/v2.0.40/bend-2.0.40-linux-x64.tar.gz" -o /tmp/bend.tar.gz
+          tar -xzf /tmp/bend.tar.gz -C "$HOME/.bend"
+          echo "$HOME/.bend/bin" >> "$GITHUB_PATH"
+      - name: Install Lean 4.34.0 (elan)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" default leanprover/lean4:v4.34.0
+      - name: Check with the BendTT kernel
+        run: |
+          lean --version
+          bend PROOF.bend --verdict

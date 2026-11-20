@@ -1,5 +1,7 @@
 # bend-ml-lab
 
+[![ci](https://github.com/superposition/bend-ml-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/superposition/bend-ml-lab/actions/workflows/ci.yml)
+
 Measured experiments in **Bend 2**: einsum kernels, training epochs, and
 weight-space diagnostics. The goal is to find out what this language is good
 for on numeric work by building the same thing three ways and timing it, not by
