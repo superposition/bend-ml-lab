@@ -17,8 +17,37 @@ Every ticket needs:
 4. for a negative result, the result and the reason, in the ticket and in the
    docs.
 
-The tracking issue stays open until all 17 rows below are `Done` or
-`Negative`.
+The tracking issue is closed when every row is `Done`, `Negative`, or a
+documented `Blocked` (external dependency).
+
+## Completion (2026-11-20)
+
+**12 Done, 3 Negative, 2 Blocked.** Every row has a committed measurement or a
+documented external blocker; no row is silently dropped.
+
+Highlights:
+
+- GPU matmul: 9.0 s -> **95 ms** tree, **5.31 ms** contiguous device buffers
+  ([#14](issues/14), `docs/contiguous.md`).
+- The 95 ms is managed-memory latency, not tree indexing; `get_unchecked` moves
+  it 4% ([#1](issues/1), `docs/plateau.md`).
+- Backends agree bit-for-bit on the 64x64 matmul ([#2](issues/2),
+  `docs/numerics.md`).
+- CPU fork/join reaches **20.5x** at depth 10 / 32 threads ([#3](issues/3),
+  `docs/cpu-scaling.md`).
+- A kernel law is proved and `--verdict`-checked; a planted bug is rejected
+  ([#4](issues/4), `docs/proofs.md`).
+- Batched 2-layer trainer: **22 ms for 2,048 epochs**, MSE 0.000406; found and
+  fixed two latent no-op kernels ([#8](issues/8), `docs/training.md`).
+- WSP on a real checkpoint with a same-engine judge and a same-norm random
+  control ([#10](issues/10), `docs/wsp-real.md`).
+- Independent `!` calls in one parallel let: **10-14x** faster than sequential
+  ([#16](issues/16), `docs/overlap.md`).
+
+Negatives: exact softmax-sum-1 is false in F32 (#7); a tree cursor cannot beat
+indexed reads (#15); parallel gradients are below the fork/join break-even at
+this batch size (#9). Blocked: a second serving engine (#12) and a native
+`cma=1` host (#17) are not available on this machine.
 
 ## Baseline (2026-11-19)
 
