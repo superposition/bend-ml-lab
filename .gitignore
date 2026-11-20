@@ -1,0 +1,12 @@
+# build artifacts
+*.o
+*.obj
+*.exe
+*.gpu
+/bench/einsum/bend_einsum
+/tmp/
+# generated run variants
+_*.bend
+# OS noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+case,lang,mode,checksum,ms
+gen,Bend,native,1048938.6,11
+matmul_seq,Bend,native,268622200,3978
+matmul_par256,Bend,native,268622200,213
+matmul_tn,Bend,native,268641470,6682
+outer,Bend,native,263967.7,3
+vdot,Bend,native,262327.66,6
+gen,C,seq,1048938.656250,7.298339
+matmul,C,seq,268622208.000000,4048.489630
+gen,C+OpenMP,par,1048938.656250,7.836020
+matmul,C+OpenMP,par,268622208.000000,222.566471
+gen,Node,seq,1048937.9137375355,12.000
+matmul,Node,seq,268619543.61068726,4503.000
+gen,NumPy-BLAS,blas,1048937.75,1694.233
+matmul,NumPy-BLAS,blas,268619520.0,24.100
