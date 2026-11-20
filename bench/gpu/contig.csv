@@ -1,0 +1,4 @@
+variant,cma,kernel_ms,copy_in_ms,copy_out_ms,total_ms,sum
+device,0,0.727,1.989,2.595,5.311,268619543.3
+managed,0,68.045,,,68.045,268619543.3
+bend_tree_managed,0,,,,95,268622200

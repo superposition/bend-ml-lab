@@ -52,7 +52,7 @@ unless stated; see the linked docs for the full tables.
 | [#11](https://github.com/superposition/bend-ml-lab/issues/11) | Requantization noise floor for a no-op WSP edit | WSP, numerics | M | Todo |
 | [#12](https://github.com/superposition/bend-ml-lab/issues/12) | Same engine vs second engine: how much does the judge move a WSP score? | WSP, bench | M | Todo |
 | [#13](https://github.com/superposition/bend-ml-lab/issues/13) | Checkpoint and resume an epoch session | training | M | Todo |
-| [#14](https://github.com/superposition/bend-ml-lab/issues/14) | Contiguous device tensor runtime (remove the tree for GPU) | runtime, GPU | L | Todo |
+| [#14](https://github.com/superposition/bend-ml-lab/issues/14) | Contiguous device tensor runtime (remove the tree for GPU) | runtime, GPU | L | Done (ceiling measured) |
 | [#15](https://github.com/superposition/bend-ml-lab/issues/15) | Tree cursor / zipper for sequential traversal | runtime | L | Todo |
 | [#16](https://github.com/superposition/bend-ml-lab/issues/16) | Multi-kernel overlap: can two `!` calls share the GPU? | GPU, runtime | M | Todo |
 | [#17](https://github.com/superposition/bend-ml-lab/issues/17) | Native-Linux GPU baseline (`cma=1`) | GPU, bench | M | Blocked (needs native host) |
