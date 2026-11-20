@@ -111,3 +111,392 @@ def pmatmul(depth: Nat, a: Array<F32>, b: Array<F32>, c: Array<F32>, +m: U32, +n
         k
       )
 
+
+# ---------------------------------------------------------------------------
+# Transposed-B variants for the GPU
+# ---------------------------------------------------------------------------
+
+def tree_bt(
+  depth: Nat,
+  fa: Array<F32> & Array<F32>,
+  fb: Array<F32> & Array<F32>,
+  fc: Array<F32> & Array<F32>,
+  +row0: U32,
+  +rows: U32,
+  +m: U32,
+  +n: U32,
+  +k: U32
+) -> Array<F32>:
+  match depth:
+    case 0n:
+      match fa:
+        case (a1, a2):
+          match fb:
+            case (b1, b2):
+              match fc:
+                case (c1, c2):
+                  +ai = U32.mul(row0, k)
+                  r = T.mm_bt(
+                    U32.to_nat(U32.mul(rows, n)),
+                    T.dot(
+                      U32.to_nat(k),
+                      Array.get(F32, a1, ai),
+                      Array.get(F32, b1, 0),
+                      ai,
+                      0,
+                      1,
+                      1,
+                      0.0
+                    ),
+                    c1,
+                    m,
+                    n,
+                    k,
+                    row0,
+                    0
+                  )
+                  Array.join(F32, r, c2)
+    case 1n++p:
+      match fa:
+        case (a1, a2):
+          match fb:
+            case (b1, b2):
+              match fc:
+                case (c1, c2):
+                  +half = U32.shrn(rows, 1n)
+                  l r = tree_bt(
+                      p,
+                      Array.fork(F32, a1),
+                      Array.fork(F32, b1),
+                      Array.fork(F32, c1),
+                      row0,
+                      half,
+                      m,
+                      n,
+                      k
+                    )
+                    tree_bt(
+                      p,
+                      Array.fork(F32, a2),
+                      Array.fork(F32, b2),
+                      Array.fork(F32, c2),
+                      U32.add(row0, half),
+                      half,
+                      m,
+                      n,
+                      k
+                    )
+                  Array.join(F32, l, r)
+
+def pmatmul_bt(depth: Nat, a: Array<F32>, bt: Array<F32>, c: Array<F32>, +m: U32, +n: U32, +k: U32) -> Array<F32>:
+  match depth:
+    case 0n:
+      T.matmul_bt(a, bt, c, m, n, k)
+    case 1n++p:
+      tree_bt(
+        p,
+        Array.fork(F32, a),
+        Array.fork(F32, bt),
+        Array.fork(F32, c),
+        0,
+        m,
+        m,
+        n,
+        k
+      )
+
+# ---------------------------------------------------------------------------
+# 2D block tree: rd row levels, then cd column levels.
+# Leaves are (rows / 2^rd) x (cols / 2^cd) output blocks, all in parallel.
+# ---------------------------------------------------------------------------
+
+def tree2(
+  rd: Nat,
+  +cd: Nat,
+  fa: Array<F32> & Array<F32>,
+  fb: Array<F32> & Array<F32>,
+  fc: Array<F32> & Array<F32>,
+  +row0: U32,
+  +rows: U32,
+  +col0: U32,
+  +cols: U32,
+  +m: U32,
+  +n: U32,
+  +k: U32
+) -> Array<F32>:
+  match rd:
+    case 1n++p:
+      match fa:
+        case (a1, a2):
+          match fb:
+            case (b1, b2):
+              match fc:
+                case (c1, c2):
+                  +half = U32.shrn(rows, 1n)
+                  l r = tree2(
+                      p,
+                      cd,
+                      Array.fork(F32, a1),
+                      Array.fork(F32, b1),
+                      Array.fork(F32, c1),
+                      row0,
+                      half,
+                      col0,
+                      cols,
+                      m,
+                      n,
+                      k
+                    )
+                    tree2(
+                      p,
+                      cd,
+                      Array.fork(F32, a2),
+                      Array.fork(F32, b2),
+                      Array.fork(F32, c2),
+                      U32.add(row0, half),
+                      half,
+                      col0,
+                      cols,
+                      m,
+                      n,
+                      k
+                    )
+                  Array.join(F32, l, r)
+    case 0n:
+      match cd:
+        case 1n++q:
+          match fa:
+            case (a1, a2):
+              match fb:
+                case (b1, b2):
+                  match fc:
+                    case (c1, c2):
+                      +half = U32.shrn(cols, 1n)
+                      l r = tree2(
+                          0n,
+                          q,
+                          Array.fork(F32, a1),
+                          Array.fork(F32, b1),
+                          Array.fork(F32, c1),
+                          row0,
+                          rows,
+                          col0,
+                          half,
+                          m,
+                          n,
+                          k
+                        )
+                        tree2(
+                          0n,
+                          q,
+                          Array.fork(F32, a2),
+                          Array.fork(F32, b2),
+                          Array.fork(F32, c2),
+                          row0,
+                          rows,
+                          U32.add(col0, half),
+                          half,
+                          m,
+                          n,
+                          k
+                        )
+                      Array.join(F32, l, r)
+        case 0n:
+          match fa:
+            case (a1, a2):
+              match fb:
+                case (b1, b2):
+                  match fc:
+                    case (c1, c2):
+                      r = T.matmul_bt_range(rows, cols, a1, b1, c1, n, k, row0, col0)
+                      Array.join(F32, r, c2)
+
+def pmatmul2_bt(
+  rd: Nat,
+  +cd: Nat,
+  a: Array<F32>,
+  bt: Array<F32>,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32
+) -> Array<F32>:
+  tree2(
+    rd,
+    cd,
+    Array.fork(F32, a),
+    Array.fork(F32, bt),
+    Array.fork(F32, c),
+    0,
+    m,
+    0,
+    n,
+    m,
+    n,
+    k
+  )
+
+
+# Tiled leaf: two rows per lane, 2x2 tiles.
+def leaf2.go(
+  pa: Array<F32> & Array<F32>,
+  pb: Array<F32> & Array<F32>,
+  c: Array<F32>,
+  +row0: U32,
+  +cols: U32,
+  +col0: U32,
+  +n: U32,
+  +k: Nat
+) -> Array<F32>:
+  match pa:
+    case (a0, a1):
+      match pb:
+        case (b0, b1):
+          T.tile.done(T.tiles.start(cols, a0, a1, b0, b1, c, row0, col0, n, k))
+
+def leaf2(
+  a: Array<F32>,
+  bt: Array<F32>,
+  c: Array<F32>,
+  +row0: U32,
+  +cols: U32,
+  +col0: U32,
+  +n: U32,
+  +k: Nat
+) -> Array<F32>:
+  leaf2.go(
+    Array.fork(F32, a),
+    Array.fork(F32, bt),
+    c,
+    row0,
+    cols,
+    col0,
+    n,
+    k
+  )
+
+def tree3(
+  rd: Nat,
+  +cd: Nat,
+  fa: Array<F32> & Array<F32>,
+  fb: Array<F32> & Array<F32>,
+  fc: Array<F32> & Array<F32>,
+  +row0: U32,
+  +rows: U32,
+  +col0: U32,
+  +cols: U32,
+  +m: U32,
+  +n: U32,
+  +k: U32
+) -> Array<F32>:
+  match rd:
+    case 1n++p:
+      match fa:
+        case (a1, a2):
+          match fb:
+            case (b1, b2):
+              match fc:
+                case (c1, c2):
+                  +half = U32.shrn(rows, 1n)
+                  l r = tree3(
+                      p,
+                      cd,
+                      Array.fork(F32, a1),
+                      Array.fork(F32, b1),
+                      Array.fork(F32, c1),
+                      row0,
+                      half,
+                      col0,
+                      cols,
+                      m,
+                      n,
+                      k
+                    )
+                    tree3(
+                      p,
+                      cd,
+                      Array.fork(F32, a2),
+                      Array.fork(F32, b2),
+                      Array.fork(F32, c2),
+                      U32.add(row0, half),
+                      half,
+                      col0,
+                      cols,
+                      m,
+                      n,
+                      k
+                    )
+                  Array.join(F32, l, r)
+    case 0n:
+      match cd:
+        case 1n++q:
+          match fa:
+            case (a1, a2):
+              match fb:
+                case (b1, b2):
+                  match fc:
+                    case (c1, c2):
+                      +half = U32.shrn(cols, 1n)
+                      l r = tree3(
+                          0n,
+                          q,
+                          Array.fork(F32, a1),
+                          Array.fork(F32, b1),
+                          Array.fork(F32, c1),
+                          row0,
+                          rows,
+                          col0,
+                          half,
+                          m,
+                          n,
+                          k
+                        )
+                        tree3(
+                          0n,
+                          q,
+                          Array.fork(F32, a2),
+                          Array.fork(F32, b2),
+                          Array.fork(F32, c2),
+                          row0,
+                          rows,
+                          U32.add(col0, half),
+                          half,
+                          m,
+                          n,
+                          k
+                        )
+                      Array.join(F32, l, r)
+        case 0n:
+          match fa:
+            case (a1, a2):
+              match fb:
+                case (b1, b2):
+                  match fc:
+                    case (c1, c2):
+                      r = leaf2(a1, b1, c1, row0, cols, col0, n, U32.to_nat(k))
+                      Array.join(F32, r, c2)
+
+def pmatmul3_bt(
+  rd: Nat,
+  cd: Nat,
+  a: Array<F32>,
+  bt: Array<F32>,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32
+) -> Array<F32>:
+  tree3(
+    rd,
+    cd,
+    Array.fork(F32, a),
+    Array.fork(F32, bt),
+    Array.fork(F32, c),
+    0,
+    m,
+    0,
+    n,
+    m,
+    n,
+    k
+  )

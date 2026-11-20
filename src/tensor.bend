@@ -418,3 +418,354 @@ def rowsum(m: U32, +n: U32, a: Array<F32>, out: Array<F32>) -> Array<F32>:
 # Debug: print an array as [a, b, ...].
 def showA(a: Array<F32>) -> String:
   Array.show(~F32, ~(s => (x => s ++ F32.show(x))), a)
+
+# ---------------------------------------------------------------------------
+# GPU-friendly variants: contiguous inner loops
+# ---------------------------------------------------------------------------
+
+# out[j*M + i] = a[i*N + j] for an M x N row-major array.
+def transpose.go(fuel: Nat, ar: Array<F32> & F32, out: Array<F32>, +m: U32, +n: U32, +p: U32) -> Array<F32>:
+  match fuel:
+    case 0n:
+      match ar:
+        case (a1, x):
+          out
+    case 1n+q:
+      match ar:
+        case (a1, x):
+          +i = U32.div(p, n)
+          +j = U32.sub(p, U32.mul(i, n))
+          +qat = U32.add(U32.mul(j, m), i)
+          +np = U32.add(p, 1)
+          transpose.go(q, Array.get(F32, a1, np), Array.set(F32, out, qat, x), m, n, np)
+
+def transpose(+m: U32, +n: U32, a: Array<F32>, out: Array<F32>) -> Array<F32>:
+  transpose.go(U32.to_nat(U32.mul(m, n)), Array.get(F32, a, 0), out, m, n, 0)
+
+# C[M,N] = A[M,K] * Bt[N,K]^T. Both operands advance by 1 along K, which is
+# the layout the GPU wants: one contiguous run per output cell, not a column
+# stride of N.
+def mm_bt(
+  fuel: Nat,
+  dr: Array<F32> & Array<F32> & F32,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32,
+  +row: U32,
+  +col: U32
+) -> Array<F32>:
+  match fuel:
+    case 0n:
+      c
+    case 1n+q:
+      match dr:
+        case (a1, b1, acc):
+          p = U32.add(U32.mul(row, n), col)
+          c1 = Array.set(F32, c, p, acc)
+          +col1 = U32.add(col, 1)
+          +wrap = U32.is_eq(col1, n)
+          +row1 = U32.add(row, Bool.to_u32(wrap))
+          +col2 = U32.sub(col1, U32.mul(n, Bool.to_u32(wrap)))
+          +ai = U32.mul(row1, k)
+          +bi = U32.mul(col2, k)
+          mm_bt(
+            q,
+            dot(
+              U32.to_nat(k),
+              Array.get(F32, a1, ai),
+              Array.get(F32, b1, bi),
+              ai,
+              bi,
+              1,
+              1,
+              0.0
+            ),
+            c1,
+            m,
+            n,
+            k,
+            row1,
+            col2
+          )
+
+def matmul_bt(a: Array<F32>, bt: Array<F32>, c: Array<F32>, +m: U32, +n: U32, +k: U32) -> Array<F32>:
+  mm_bt(
+    U32.to_nat(U32.mul(m, n)),
+    dot(
+      U32.to_nat(k),
+      Array.get(F32, a, 0),
+      Array.get(F32, bt, 0),
+      0,
+      0,
+      1,
+      1,
+      0.0
+    ),
+    c,
+    m,
+    n,
+    k,
+    0,
+    0
+  )
+
+# A rectangular range of C: rows [row0, row0+rows), cols [col0, col0+cols).
+def mm_bt_range(
+  fuel: Nat,
+  dr: Array<F32> & Array<F32> & F32,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32,
+  +row: U32,
+  +col: U32,
+  +col0: U32,
+  +col_end: U32
+) -> Array<F32>:
+  match fuel:
+    case 0n:
+      c
+    case 1n+q:
+      match dr:
+        case (a1, b1, acc):
+          p = U32.add(U32.mul(row, n), col)
+          c1 = Array.set(F32, c, p, acc)
+          +col1 = U32.add(col, 1)
+          +wrap = U32.is_eq(col1, col_end)
+          +row1 = U32.add(row, Bool.to_u32(wrap))
+          +col2 = U32.sub(col1, U32.mul(U32.sub(col_end, col0), Bool.to_u32(wrap)))
+          +ai = U32.mul(row1, k)
+          +bi = U32.mul(col2, k)
+          mm_bt_range(
+            q,
+            dot(
+              U32.to_nat(k),
+              Array.get(F32, a1, ai),
+              Array.get(F32, b1, bi),
+              ai,
+              bi,
+              1,
+              1,
+              0.0
+            ),
+            c1,
+            m,
+            n,
+            k,
+            row1,
+            col2,
+            col0,
+            col_end
+          )
+
+# C rows [row0,row0+rows) x cols [col0,col0+cols) = A * Bt^T.
+def matmul_bt_range(
+  rows: U32,
+  +cols: U32,
+  a: Array<F32>,
+  bt: Array<F32>,
+  c: Array<F32>,
+  +n: U32,
+  +k: U32,
+  +row0: U32,
+  +col0: U32
+) -> Array<F32>:
+  +ai = U32.mul(row0, k)
+  +bi = U32.mul(col0, k)
+  mm_bt_range(
+    U32.to_nat(U32.mul(rows, cols)),
+    dot(
+      U32.to_nat(k),
+      Array.get(F32, a, ai),
+      Array.get(F32, bt, bi),
+      ai,
+      bi,
+      1,
+      1,
+      0.0
+    ),
+    c,
+    n,
+    n,
+    k,
+    row0,
+    col0,
+    col0,
+    U32.add(col0, cols)
+  )
+
+# ---------------------------------------------------------------------------
+# 2x2 tiled kernel (for the 2D tree, rows per lane = 2)
+# ---------------------------------------------------------------------------
+
+type Quad is Data:
+  Q{a00: F32, a01: F32, a10: F32, a11: F32}
+
+type KS is Type:
+  KS{a0: Array<F32>, a1: Array<F32>, b0: Array<F32>, b1: Array<F32>, q: Quad}
+
+type WS is Type:
+  WS{c: Array<F32>, ks: KS}
+
+def kq(
+  fuel: Nat,
+  ar0: Array<F32> & F32,
+  ar1: Array<F32> & F32,
+  br0: Array<F32> & F32,
+  br1: Array<F32> & F32,
+  q: Quad,
+  +i0: U32,
+  +i1: U32,
+  +j0: U32,
+  +j1: U32
+) -> KS:
+  match fuel:
+    case 0n:
+      match ar0:
+        case (a0, x0):
+          match ar1:
+            case (a1, x1):
+              match br0:
+                case (b0, y0):
+                  match br1:
+                    case (b1, y1):
+                      KS{a0, a1, b0, b1, q}
+    case 1n+p:
+      match ar0:
+        case (a0, +x0):
+          match ar1:
+            case (a1, +x1):
+              match br0:
+                case (b0, +y0):
+                  match br1:
+                    case (b1, +y1):
+                      match q:
+                        case Q{+q00, +q01, +q10, +q11}:
+                          +i0n = U32.add(i0, 1)
+                          +i1n = U32.add(i1, 1)
+                          +j0n = U32.add(j0, 1)
+                          +j1n = U32.add(j1, 1)
+                          kq(
+                            p,
+                            Array.get(F32, a0, i0n),
+                            Array.get(F32, a1, i1n),
+                            Array.get(F32, b0, j0n),
+                            Array.get(F32, b1, j1n),
+                            Q{
+                              F32.add(q00, F32.mul(x0, y0)),
+                              F32.add(q01, F32.mul(x0, y1)),
+                              F32.add(q10, F32.mul(x1, y0)),
+                              F32.add(q11, F32.mul(x1, y1))
+                            },
+                            i0n,
+                            i1n,
+                            j0n,
+                            j1n
+                          )
+
+def kq.done(r: KS, c: Array<F32>, +row0: U32, +row1: U32, +col0: U32, +col1: U32, +n: U32) -> WS:
+  match r:
+    case KS{a0, a1, b0, b1, q}:
+      match q:
+        case Q{+q00, +q01, +q10, +q11}:
+          c1 = Array.set(F32, c, U32.add(U32.mul(row0, n), col0), q00)
+          c2 = Array.set(F32, c1, U32.add(U32.mul(row0, n), col1), q01)
+          c3 = Array.set(F32, c2, U32.add(U32.mul(row1, n), col0), q10)
+          c4 = Array.set(F32, c3, U32.add(U32.mul(row1, n), col1), q11)
+          WS{c4, KS{a0, a1, b0, b1, Q{q00, q01, q10, q11}}}
+
+def tile(
+  k: Nat,
+  a0: Array<F32>,
+  a1: Array<F32>,
+  b0: Array<F32>,
+  b1: Array<F32>,
+  c: Array<F32>,
+  +row0: U32,
+  +row1: U32,
+  +col0: U32,
+  +col1: U32,
+  +n: U32
+) -> WS:
+  +i0 = U32.mul(row0, n)
+  +i1 = U32.mul(row1, n)
+  +j0 = U32.mul(col0, n)
+  +j1 = U32.mul(col1, n)
+  kq.done(
+    kq(
+      k,
+      Array.get(F32, a0, i0),
+      Array.get(F32, a1, i1),
+      Array.get(F32, b0, j0),
+      Array.get(F32, b1, j1),
+      Q{0.0, 0.0, 0.0, 0.0},
+      i0,
+      i1,
+      j0,
+      j1
+    ),
+    c,
+    row0,
+    row1,
+    col0,
+    col1,
+    n
+  )
+
+def tiles(
+  fuel: Nat,
+  w: WS,
+  +row0: U32,
+  +row1: U32,
+  +col0: U32,
+  +n: U32,
+  +k: Nat
+) -> WS:
+  match fuel:
+    case 0n:
+      w
+    case 1n+q:
+      match w:
+        case WS{c, ks}:
+          match ks:
+            case KS{a0, a1, b0, b1, _}:
+              +col1 = U32.add(col0, 1)
+              +col2 = U32.add(col0, 2)
+              tiles(
+                q,
+                tile(k, a0, a1, b0, b1, c, row0, row1, col0, col1, n),
+                row0,
+                row1,
+                col2,
+                n,
+                k
+              )
+
+def tiles.start(
+  cols: U32,
+  a0: Array<F32>,
+  a1: Array<F32>,
+  b0: Array<F32>,
+  b1: Array<F32>,
+  c: Array<F32>,
+  +row0: U32,
+  +col0: U32,
+  +n: U32,
+  +k: Nat
+) -> WS:
+  tiles(
+    U32.to_nat(U32.shrn(cols, 1n)),
+    WS{c, KS{a0, a1, b0, b1, Q{0.0, 0.0, 0.0, 0.0}}},
+    row0,
+    U32.add(row0, 1),
+    col0,
+    n,
+    k
+  )
+
+def tile.done(w: WS) -> Array<F32>:
+  match w:
+    case WS{c, ks}:
+      c
+

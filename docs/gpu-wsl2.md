@@ -97,23 +97,55 @@ touched in order.
 The GPU lane is real: ~8.4x over the CPU. `nvidia-smi` shows the device active
 during the run.
 
-### An irregular kernel: 1024x1024 matmul (`bench/einsum/gpu.bend`)
+### An irregular kernel: 1024x1024 matmul
 
-| mode | checksum | ms (program clock) | wall |
-|---|---:|---:|---:|
-| CPU parallel, no `!` | 268,622,200 | 213 | 0.3 s |
-| WSL2 patched GPU, `!` depth 8 | 268,622,200 | 9,008–9,313 | 11.5–12.0 s |
-| CPU fallback of the same `!` binary | 268,622,200 | 9,296 | 32.8 s |
+The first working version was 9.0 s. The final one is 95 ms. These are the
+steps that mattered, all with the same checksum (`268622200`) and the same
+generated kernels:
 
-During the GPU run: **100% GPU utilization**, 13.0 GB of managed memory in use
-(the runtime reserves a large span even though the logical arrays are 12 MB).
-The checksum is correct, so the kernel ran; the time is dominated by managed
-page migration/page faults on an irregular access pattern, not by arithmetic.
-`pow2` gets 8.4x because its pages move predictably; the matmul's heap traversal
-does not.
+| version | lanes | ms | what changed |
+|---|---:|---:|---|
+| naive, 256 lanes | 256 | 9,008 | one dot per output cell; column stride N |
+| transposed B, 256 lanes | 256 | 1,373 | both inner-loop operands advance by 1 |
+| 1D tree, depth 10 | 1,024 | 470 | one output row per lane |
+| 2D tree, 4096 lanes | 4,096 | 230 | 1 row x 256 cols per lane |
+| 2x2 tiled, 2048 lanes | 2,048 | 141 | 2 rows x 256 cols; 4 reads per 4 MACs |
+| **2x2 tiled, 1024 lanes** | **1,024** | **95** (87-107) | 2 rows x 512 cols; `--gpu 512MB` |
+| CPU parallel (reference) | 32 vCPU | 213 | no `!` |
 
-That is the useful conclusion: **WSL2 can execute the GPU lane, but it is not a
-performance path for pointer-heavy kernels.**
+Why this order:
+
+1. **Layout first.** A column stride of N makes every inner-loop read a tree
+   walk into a different part of the heap. Transposing B on the host is a
+   12 ms CPU pass and cuts the GPU time 6.5x.
+2. **Occupancy second.** One lane per output cell is 1M lanes, more than the
+   16,384-task cube. One row per lane (1,024) is the first useful split; the
+   remaining gain comes from splitting columns as well, then stopping at 1,024
+   lanes. 4,096 lanes is slower: the per-lane work gets too small.
+3. **Reuse third.** A 2x2 tile reads four values (two A, two B) per four
+   multiply-adds instead of eight. That is the 230 -> 141 ms step.
+4. **Heap size last.** `--gpu 512MB` is the smallest span that fits 1,024
+   lanes; it is ~1.5x faster than 4 GB because the managed heap has fewer pages
+   to track/migrate.
+
+The final configuration is in `bench/einsum/gpu_tile.bend`:
+
+```bash
+~/.bun/bin/bun ~/bend-src-wsl2/bend2/main.ts bench/einsum/gpu_tile.bend -o /tmp/tile
+/tmp/tile +RTS --gpu 512MB
+```
+
+Program-clock kernel: **87-107 ms** (median 95 ms) against **213 ms** for the
+32-vCPU parallel build, so the patched GPU is **2.2x faster on compute**.
+Wall-clock for one process is **0.69 s vs 0.3 s** because GPU setup is ~0.5 s;
+a session of several matmuls amortizes it. The first version took 9.0 s, so the
+optimization is **99x** end to end.
+
+The GPU is genuinely active (100% utilization, 13 GB managed at 4 GB heap; less
+at 512 MB) and the checksum is identical. The remaining gap to a native CUDA
+BLAS is the tree layout: every value is a separately allocated node, so the
+kernel is latency-bound on pointer chasing, not on 4090 FLOPs. A contiguous
+device buffer would need a runtime change, not a Bend program.
 
 ## What to use for real GPU numbers
 

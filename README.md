@@ -47,11 +47,11 @@ The checker and the runtime agree with each other.
 
 **GPU on WSL2 (patched, unsupported):** the 4090 reports
 `concurrentManagedAccess=0`, so Bend refuses the GPU lane by default. With the
-guard relaxed (`docs/gpu-wsl2.md`), `pow2(20)` runs **8.4x faster than CPU**, but
-the 1024 matmul takes **9.0 s** (correct checksum, 100% GPU utilization) against
-**0.213 s** on CPU-parallel — managed page migration dominates an irregular
-heap walk. WSL2 is a correctness lane, not a performance lane; native Linux is
-required for a meaningful GPU number.
+guard relaxed (`docs/gpu-wsl2.md`), the tiled 2x2 kernel runs the 1024 matmul in
+**87–107 ms** (median 95 ms) against **213 ms** on 32-vCPU parallel — **2.2x
+faster on compute**, 99x faster than the first working GPU version (9.0 s).
+Single-process wall is 0.69 s vs 0.3 s because GPU setup is ~0.5 s; repeated
+matmuls amortize it. Native Linux remains the supported path.
 
 ### 2. Parallel scaling (`n = 1024`, Bend native)
 
@@ -120,12 +120,12 @@ capability result and not a replication of any published WSP edit. See
    copyable, so weight updates are pure list rebuilds with no ownership
    puzzles. The price is O(n) list indexing; at 60 weights it is invisible
    (3.5 ms/epoch).
-7. **WSL2's GPU lane needs a patch, and is slow even then.** The 4090 reports
-   `concurrentManagedAccess=0`; Bend's guard is conservative (the runtime never
-   touches managed memory while a kernel runs), so relaxing it executes
-   correctly: `pow2` is 8.4x faster than CPU, but the 1024 matmul is 9.0 s vs
-   0.213 s CPU-parallel. Managed page migration, not arithmetic, is the limit.
-   Native Linux (or a GPU-passthrough VM) is required for a real number.
+7. **WSL2's GPU lane needs a patch, and layout dominates.** The 4090 reports
+   `concurrentManagedAccess=0`; Bend's guard is conservative, so relaxing it
+   executes correctly. The first matmul took 9.0 s; transposing B, using a 2D
+   fork tree, 2x2 tiling and a 512 MB heap brought it to 95 ms — 2.2x faster
+   than 32-vCPU parallel. The rest is the tree layout: every value is a heap
+   node, so the kernel is pointer-latency-bound, not FLOP-bound.
 8. **No Windows target.** WSL works; native Windows does not. CUDA/Metal need a
    native host anyway.
 9. **No laws yet.** `bend --check-only` passes on the safe core (`ALL PROOFS
@@ -170,6 +170,7 @@ train/main.bend       per-epoch loss/time CSV
 train/epoch_sweep.sh  1..64 epoch scaling table
 wsp/analyze.bend      stats, row scaling, random-direction control
 bench/einsum/gpu.bend GPU probe (`!`), built with the patched WSL2 compiler
+bench/einsum/gpu_tile.bend final 2x2-tiled GPU matmul (95 ms, 1024 lanes)
 tools/wsl2-gpu.patch   relax the WSL2 CUDA guard (unsupported; docs/gpu-wsl2.md)
 docs/gpu-wsl2.md      why cma=0 on WSL2, the patch, and the measured result
 docs/bend-notes.md    language idioms and traps found while building this

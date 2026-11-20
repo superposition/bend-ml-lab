@@ -108,14 +108,18 @@ produces the correct checksum, but the result is not a performance number:
 | mode | ms | note |
 |---|---:|---|
 | CPU parallel, no `!` | 213 | the 32-vCPU path |
-| WSL2 patched GPU, `!` depth 8 | 9,008–9,313 | 100% util, 13 GB managed |
+| **WSL2 patched GPU, 2x2 tiled, 1024 lanes** | **95** | 2 rows x 512 cols; `--gpu 512MB` |
+| WSL2 patched GPU, first working version | 9,008 | 1 row per lane, column stride |
 | `pow2(20)`, CPU | 21,920 | regular access |
 | `pow2(20)`, patched GPU | 2,600 | 8.4x; regular access |
 
-The irregular matmul heap walk page-faults managed memory over PCIe; the
-regular `pow2` tree does not. Treat the WSL2 lane as correctness-only. Native
-Linux, a GPU-passthrough VM, or the Jetson is required for a meaningful GPU
-benchmark.
+The progression is layout first (transpose B: 9.0 s -> 1.37 s), then occupancy
+(1D/2D trees: -> 230 ms), then reuse (2x2 tiles: -> 95 ms). The 4090 is active
+(100% util) and the checksum is unchanged. The remaining gap is the tree
+layout: values are separately allocated nodes, so the kernel is latency-bound
+on pointer chasing. A contiguous device buffer would require a runtime change.
+
+See `docs/gpu-wsl2.md` for the patch and the full table.
 
 ## Correctness gates used here
 
