@@ -1,0 +1,5 @@
+mode,ms,sum
+CPU-seq,11,67218400
+CPU-par,9,67218400
+GPU-seq,123,67218400
+GPU-par,11,67218400
