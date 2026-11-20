@@ -24,7 +24,11 @@ def go() -> String:
   b4 : Array<F32> = T.gen(cells, 11)
   bt4 : Array<F32> = T.transpose(n, n, b4, Array.new(F32, 4n, 0.0))
   c4 : Array<F32> = P.pmatmul3_bt(1n, 1n, a4, bt4, Array.new(F32, 4n, 0.0), n, n, n)
-  run("bt", c1) ++ "|" ++ run("2d40", c2) ++ "|" ++ run("2d22", c3) ++ "|" ++ run("tile", c4)
+  a5 : Array<F32> = T.gen(cells, 7)
+  b5 : Array<F32> = T.gen(cells, 11)
+  bt5 : Array<F32> = T.transpose(n, n, b5, Array.new(F32, 4n, 0.0))
+  c5 : Array<F32> = P.pmatmul4_bt(0n, 0n, a5, bt5, Array.new(F32, 4n, 0.0), n, n, n)
+  run("bt", c1) ++ "|" ++ run("2d40", c2) ++ "|" ++ run("2d22", c3) ++ "|" ++ run("tile", c4) ++ "|" ++ run("tile4", c5)
 
 def main() -> IO(Unit):
   do IO<Unit>:

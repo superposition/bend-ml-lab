@@ -5,4 +5,5 @@ transposed_B_256_lanes,268622200,1373,contiguous inner loop
 2d_4096_lanes,268622200,230,1 row x 256 cols
 tiled_2x2_2048_lanes,268622200,141,2 rows x 256 cols
 tiled_2x2_1024_lanes,268622200,95,2 rows x 512 cols; --gpu 512MB
+tiled_4x4_256_lanes,268622200,98,4 rows x 1024 cols; halved reads, quarter lanes
 cpu_parallel,268622200,213,32 vCPU; no `!`

@@ -1,0 +1,26 @@
+import Base
+import ../../src/tensor.bend as T
+import ../../src/parallel.bend as P
+
+# 4x4-tiled GPU matmul: rd=8 gives 4 rows per lane, cd splits columns.
+# This variant trades lanes for reuse (8 reads per 16 MACs). Best 4x4 config:
+# cd=0 (256 lanes), ~98 ms; it ties the 2x2 kernel because four times fewer
+# lanes cancel the halved read count.
+def main() -> IO(Unit):
+  do IO<Unit>:
+    +n : U32 = 1024
+    +cells : U32 = U32.mul(n, n)
+    t_prep0 : Nat <- IO.now()
+    a : Array<F32> = T.gen(cells, 7)
+    b : Array<F32> = T.gen(cells, 11)
+    bt : Array<F32> = T.transpose(n, n, b, Array.new(F32, U32.log2(cells), 0.0))
+    c0 : Array<F32> = Array.new(F32, U32.log2(cells), 0.0)
+    t_prep1 : Nat <- IO.now()
+    t0 : Nat <- IO.now()
+    c : Array<F32> = P.pmatmul4_bt!(8n, 0n, a, bt, c0, n, n, n)
+    t1 : Nat <- IO.now()
+    v : F32 = T.checksum(cells, c)
+    IO.print(
+      F32.show(v) ++ "," ++ Nat.show(Nat.sub(t1, t0)) ++ "," ++
+      Nat.show(Nat.sub(t_prep1, t_prep0))
+    )

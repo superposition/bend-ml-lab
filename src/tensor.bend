@@ -769,3 +769,200 @@ def tile.done(w: WS) -> Array<F32>:
     case WS{c, ks}:
       c
 
+
+# ---------------------------------------------------------------------------
+# 4x4 tiled kernel (rows per lane = 4)
+# ---------------------------------------------------------------------------
+
+type Hex is Data:
+  H{h00: F32, h01: F32, h02: F32, h03: F32, h10: F32, h11: F32, h12: F32, h13: F32, h20: F32, h21: F32, h22: F32, h23: F32, h30: F32, h31: F32, h32: F32, h33: F32}
+
+type K4 is Type:
+  K{a0: Array<F32>, a1: Array<F32>, a2: Array<F32>, a3: Array<F32>,
+    b0: Array<F32>, b1: Array<F32>, b2: Array<F32>, b3: Array<F32>, h: Hex}
+
+type W4 is Type:
+  W{c: Array<F32>, ks: K4}
+
+def k4(
+  fuel: Nat,
+  ar0: Array<F32> & F32,
+  ar1: Array<F32> & F32,
+  ar2: Array<F32> & F32,
+  ar3: Array<F32> & F32,
+  br0: Array<F32> & F32,
+  br1: Array<F32> & F32,
+  br2: Array<F32> & F32,
+  br3: Array<F32> & F32,
+  h: Hex,
+  +i0: U32,
+  +i1: U32,
+  +i2: U32,
+  +i3: U32,
+  +j0: U32
+  +j1: U32
+  +j2: U32
+  +j3: U32
+) -> K4:
+  match fuel:
+    case 0n:
+      match ar0:
+        case (a0, _):
+          match ar1:
+            case (a1, _):
+              match ar2:
+                case (a2, _):
+                  match ar3:
+                    case (a3, _):
+                      match br0:
+                        case (b0, _):
+                          match br1:
+                            case (b1, _):
+                              match br2:
+                                case (b2, _):
+                                  match br3:
+                                    case (b3, _):
+                                      K{a0, a1, a2, a3, b0, b1, b2, b3, h}
+    case 1n+p:
+      match ar0:
+        case (a0, +x0):
+          match ar1:
+            case (a1, +x1):
+              match ar2:
+                case (a2, +x2):
+                  match ar3:
+                    case (a3, +x3):
+                      match br0:
+                        case (b0, +y0):
+                          match br1:
+                            case (b1, +y1):
+                              match br2:
+                                case (b2, +y2):
+                                  match br3:
+                                    case (b3, +y3):
+                                      match h:
+                                        case H{h00, h01, h02, h03, h10, h11, h12, h13, h20, h21, h22, h23, h30, h31, h32, h33}:
+                                          +i0n = U32.add(i0, 1)
+                                          +i1n = U32.add(i1, 1)
+                                          +i2n = U32.add(i2, 1)
+                                          +i3n = U32.add(i3, 1)
+                                          +j0n = U32.add(j0, 1)
+                                          +j1n = U32.add(j1, 1)
+                                          +j2n = U32.add(j2, 1)
+                                          +j3n = U32.add(j3, 1)
+                                          k4(
+                                            p,
+                                            Array.get(F32, a0, i0n),
+                                            Array.get(F32, a1, i1n),
+                                            Array.get(F32, a2, i2n),
+                                            Array.get(F32, a3, i3n),
+                                            Array.get(F32, b0, j0n),
+                                            Array.get(F32, b1, j1n),
+                                            Array.get(F32, b2, j2n),
+                                            Array.get(F32, b3, j3n),
+                                            H{F32.add(h00, F32.mul(x0, y0)), F32.add(h01, F32.mul(x0, y1)), F32.add(h02, F32.mul(x0, y2)), F32.add(h03, F32.mul(x0, y3)), F32.add(h10, F32.mul(x1, y0)), F32.add(h11, F32.mul(x1, y1)), F32.add(h12, F32.mul(x1, y2)), F32.add(h13, F32.mul(x1, y3)), F32.add(h20, F32.mul(x2, y0)), F32.add(h21, F32.mul(x2, y1)), F32.add(h22, F32.mul(x2, y2)), F32.add(h23, F32.mul(x2, y3)), F32.add(h30, F32.mul(x3, y0)), F32.add(h31, F32.mul(x3, y1)), F32.add(h32, F32.mul(x3, y2)), F32.add(h33, F32.mul(x3, y3))},
+                                            i0n,
+                                            i1n,
+                                            i2n,
+                                            i3n,
+                                            j0n,
+                                            j1n,
+                                            j2n,
+                                            j3n
+                                          )
+
+def k4.done(r: K4, c: Array<F32>, +row0: U32, +row1: U32, +row2: U32, +row3: U32,
+            +col0: U32, +col1: U32, +col2: U32, +col3: U32, +n: U32) -> W4:
+  match r:
+    case K{a0, a1, a2, a3, b0, b1, b2, b3, h}:
+      match h:
+        case H{+h00, +h01, +h02, +h03, +h10, +h11, +h12, +h13, +h20, +h21, +h22, +h23, +h30, +h31, +h32, +h33}:
+          c1 = Array.set(F32, c, U32.add(U32.mul(row0, n), col0), h00)
+          c2 = Array.set(F32, c1, U32.add(U32.mul(row0, n), col1), h01)
+          c3 = Array.set(F32, c2, U32.add(U32.mul(row0, n), col2), h02)
+          c4 = Array.set(F32, c3, U32.add(U32.mul(row0, n), col3), h03)
+          c5 = Array.set(F32, c4, U32.add(U32.mul(row1, n), col0), h10)
+          c6 = Array.set(F32, c5, U32.add(U32.mul(row1, n), col1), h11)
+          c7 = Array.set(F32, c6, U32.add(U32.mul(row1, n), col2), h12)
+          c8 = Array.set(F32, c7, U32.add(U32.mul(row1, n), col3), h13)
+          c9 = Array.set(F32, c8, U32.add(U32.mul(row2, n), col0), h20)
+          c10 = Array.set(F32, c9, U32.add(U32.mul(row2, n), col1), h21)
+          c11 = Array.set(F32, c10, U32.add(U32.mul(row2, n), col2), h22)
+          c12 = Array.set(F32, c11, U32.add(U32.mul(row2, n), col3), h23)
+          c13 = Array.set(F32, c12, U32.add(U32.mul(row3, n), col0), h30)
+          c14 = Array.set(F32, c13, U32.add(U32.mul(row3, n), col1), h31)
+          c15 = Array.set(F32, c14, U32.add(U32.mul(row3, n), col2), h32)
+          c16 = Array.set(F32, c15, U32.add(U32.mul(row3, n), col3), h33)
+          W{c16, K{a0, a1, a2, a3, b0, b1, b2, b3, H{h00, h01, h02, h03, h10, h11, h12, h13, h20, h21, h22, h23, h30, h31, h32, h33}}}
+
+def tile4(k: Nat, a0: Array<F32>, a1: Array<F32>, a2: Array<F32>, a3: Array<F32>,
+          b0: Array<F32>, b1: Array<F32>, b2: Array<F32>, b3: Array<F32>,
+          c: Array<F32>, +row0: U32, +col0: U32, +n: U32) -> W4:
+  +row1 = U32.add(row0, 1)
+  +row2 = U32.add(row0, 2)
+  +row3 = U32.add(row0, 3)
+  +col1 = U32.add(col0, 1)
+  +col2 = U32.add(col0, 2)
+  +col3 = U32.add(col0, 3)
+  +i0 = U32.mul(row0, n)
+  +i1 = U32.mul(row1, n)
+  +i2 = U32.mul(row2, n)
+  +i3 = U32.mul(row3, n)
+  +j0 = U32.mul(col0, n)
+  +j1 = U32.mul(col1, n)
+  +j2 = U32.mul(col2, n)
+  +j3 = U32.mul(col3, n)
+  k4.done(
+    k4(
+      k,
+      Array.get(F32, a0, i0),
+      Array.get(F32, a1, i1),
+      Array.get(F32, a2, i2),
+      Array.get(F32, a3, i3),
+      Array.get(F32, b0, j0),
+      Array.get(F32, b1, j1),
+      Array.get(F32, b2, j2),
+      Array.get(F32, b3, j3),
+      H{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+      i0,
+      i1,
+      i2,
+      i3,
+      j0,
+      j1,
+      j2,
+      j3
+    ),
+    c, row0, row1, row2, row3, col0, col1, col2, col3, n
+  )
+
+def tiles4(fuel: Nat, w: W4, +row0: U32, +col0: U32, +n: U32, +k: Nat) -> W4:
+  match fuel:
+    case 0n:
+      w
+    case 1n+q:
+      match w:
+        case W{c, ks}:
+          match ks:
+            case K{a0, a1, a2, a3, b0, b1, b2, b3, _}:
+              +col4 = U32.add(col0, 4)
+              tiles4(
+                q,
+                tile4(k, a0, a1, a2, a3, b0, b1, b2, b3, c, row0, col0, n),
+                row0, col4, n, k
+              )
+
+def tiles4.start(cols: U32, a0: Array<F32>, a1: Array<F32>, a2: Array<F32>, a3: Array<F32>,
+                 b0: Array<F32>, b1: Array<F32>, b2: Array<F32>, b3: Array<F32>,
+                 c: Array<F32>, +row0: U32, +col0: U32, +n: U32, +k: Nat) -> W4:
+  tiles4(
+    U32.to_nat(U32.shrn(cols, 2n)),
+    W{c, K{a0, a1, a2, a3, b0, b1, b2, b3,
+      H{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}},
+    row0, col0, n, k
+  )
+
+def tile4.done(w: W4) -> Array<F32>:
+  match w:
+    case W{c, ks}:
+      c

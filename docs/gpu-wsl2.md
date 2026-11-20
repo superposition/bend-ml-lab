@@ -111,6 +111,7 @@ generated kernels:
 | 2D tree, 4096 lanes | 4,096 | 230 | 1 row x 256 cols per lane |
 | 2x2 tiled, 2048 lanes | 2,048 | 141 | 2 rows x 256 cols; 4 reads per 4 MACs |
 | **2x2 tiled, 1024 lanes** | **1,024** | **95** (87-107) | 2 rows x 512 cols; `--gpu 512MB` |
+| 4x4 tiled, 256 lanes | 256 | 98 (90-102) | 4 rows x 1,024 cols; half the reads, quarter the lanes |
 | CPU parallel (reference) | 32 vCPU | 213 | no `!` |
 
 Why this order:
@@ -127,6 +128,10 @@ Why this order:
 4. **Heap size last.** `--gpu 512MB` is the smallest span that fits 1,024
    lanes; it is ~1.5x faster than 4 GB because the managed heap has fewer pages
    to track/migrate.
+5. **4x4 tiles are a tie.** A 4x4 tile needs only 8 reads per 16 MACs (half of
+   2x2), but it needs four rows per lane, so the best config has 256 lanes
+   instead of 1,024. The two effects cancel at ~98 ms. More tiling is not the
+   lever; the plateau is the tree layout and per-lane latency.
 
 The final configuration is in `bench/einsum/gpu_tile.bend`:
 

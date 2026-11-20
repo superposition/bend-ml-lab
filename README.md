@@ -51,7 +51,9 @@ guard relaxed (`docs/gpu-wsl2.md`), the tiled 2x2 kernel runs the 1024 matmul in
 **87–107 ms** (median 95 ms) against **213 ms** on 32-vCPU parallel — **2.2x
 faster on compute**, 99x faster than the first working GPU version (9.0 s).
 Single-process wall is 0.69 s vs 0.3 s because GPU setup is ~0.5 s; repeated
-matmuls amortize it. Native Linux remains the supported path.
+matmuls amortize it. A 4x4 tiled variant halves reads again but needs four
+times fewer lanes and lands at ~98 ms — a tie, which is why 2x2/1,024 lanes is
+the recommended config. Native Linux remains the supported path.
 
 ### 2. Parallel scaling (`n = 1024`, Bend native)
 
