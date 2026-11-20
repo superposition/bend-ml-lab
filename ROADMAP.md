@@ -42,9 +42,9 @@ unless stated; see the linked docs for the full tables.
 | [#1](https://github.com/superposition/bend-ml-lab/issues/1) | Explain the 95 ms plateau: tree indexing vs managed migration | runtime, GPU | S | Done |
 | [#2](https://github.com/superposition/bend-ml-lab/issues/2) | Backend bit-exactness matrix (C, JS, native 1/32 threads, GPU) | numerics | S | Done |
 | [#3](https://github.com/superposition/bend-ml-lab/issues/3) | Thread scaling of Bend fork/join | runtime, bench | S | Done |
-| [#4](https://github.com/superposition/bend-ml-lab/issues/4) | Prove the tensor kernels in `LAWS.bend` / `PROOF.bend` | proofs | M | Todo |
-| [#5](https://github.com/superposition/bend-ml-lab/issues/5) | Measure the proof checker cost on kernel laws | proofs, bench | S | Todo |
-| [#6](https://github.com/superposition/bend-ml-lab/issues/6) | Differential fuzz of C / JS / GPU tensor kernels | numerics | M | Todo |
+| [#4](https://github.com/superposition/bend-ml-lab/issues/4) | Prove the tensor kernels in `LAWS.bend` / `PROOF.bend` | proofs | M | Done |
+| [#5](https://github.com/superposition/bend-ml-lab/issues/5) | Measure the proof checker cost on kernel laws | proofs, bench | S | Done |
+| [#6](https://github.com/superposition/bend-ml-lab/issues/6) | Differential fuzz of C / JS / GPU tensor kernels | numerics | M | Done (rectangular corpus) |
 | [#7](https://github.com/superposition/bend-ml-lab/issues/7) | Prove softmax sums to 1 for a non-empty list | proofs | M | Todo |
 | [#8](https://github.com/superposition/bend-ml-lab/issues/8) | Batched trainer: matmul path vs scalar SGD | training, bench | M | Todo |
 | [#9](https://github.com/superposition/bend-ml-lab/issues/9) | Parallel batch gradients with fork/join | training, runtime | L | Todo |
