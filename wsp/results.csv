@@ -1,0 +1,7 @@
+prompt,edit,max_abs,mean_abs,top1_changed,top5_overlap,top1_before,top1_after
+"The capital of France is",rank1,3.324896e-03,7.448829e-04,False,5," is"," is"
+"The capital of France is",random,3.804348e-03,9.145573e-04,False,5," is"," is"
+"Once upon a time",rank1,4.502196e-03,1.197865e-03,False,5," Wh"," Wh"
+"Once upon a time",random,3.230743e-03,8.368348e-04,False,5," Wh"," Wh"
+"2 + 2 =",rank1,1.076483e-02,2.405286e-03,True,5,"ich","&"
+"2 + 2 =",random,5.843185e-03,1.261640e-03,False,5,"ich","ich"
