@@ -966,3 +966,19 @@ def tile4.done(w: W4) -> Array<F32>:
   match w:
     case W{c, ks}:
       c
+
+# Structural fold over the array tree: visits ALeaf/ANode, no index math.
+def sum_tree(a: Array<F32>, acc: F32) -> F32:
+  match a:
+    case ALeaf{x}:
+      F32.add(acc, x)
+    case ANode{xs, ys}:
+      sum_tree(ys, sum_tree(xs, acc))
+
+# Fold over a copyable list (the representation Array.to_list produces).
+def sum_list(xs: List<&1, F32>, acc: F32) -> F32:
+  match xs:
+    case Nil{}:
+      acc
+    case h <> t:
+      sum_list(t, F32.add(acc, h))

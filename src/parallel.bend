@@ -576,3 +576,16 @@ def pmatmul4_bt(rd: Nat, cd: Nat, a: Array<F32>, bt: Array<F32>, c: Array<F32>,
                 +m: U32, +n: U32, +k: U32) -> Array<F32>:
   tree4(rd, cd, Array.fork(F32, a), Array.fork(F32, bt), Array.fork(F32, c),
     0, m, 0, n, m, n, k)
+
+# Indexed fold with Array.get_unchecked (no size/bounds work).
+def csumu.go(fuel: Nat, ar: Array<F32> & F32, +i: U32, acc: F32) -> F32:
+  match fuel:
+    case 0n:
+      acc
+    case 1n+p:
+      match ar:
+        case (a1, x):
+          csumu.go(p, Array.get_unchecked(F32, a1, U32.add(i, 1)), U32.add(i, 1), F32.add(acc, x))
+
+def csumu(cells: U32, a: Array<F32>) -> F32:
+  csumu.go(U32.to_nat(cells), Array.get_unchecked(F32, a, 0), 0, 0.0)
