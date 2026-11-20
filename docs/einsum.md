@@ -96,19 +96,26 @@ The C/Node/NumPy twins use the same xorshift32 generator and the same `i,j,k`
 loop order. Checksums agree to ~3e-8 relative; the last-bit difference is float
 accumulation order, not a logic difference.
 
-## What the GPU would change
+## The GPU lane
 
 `!` on a `matmul` call hands the fork tree to the GPU; the same `tree` function
-is the kernel. On a native Linux host with CUDA this is the intended path. On
-WSL2 it is not measurable:
+is the kernel. On a native Linux host with CUDA this is the intended path.
 
-```
-$ ./bench +RTS --gpu 4GB
-bend: CUDA device lacks concurrent managed access (WSL2 lacks it)
-```
+WSL2 reports `concurrentManagedAccess=0`, and Bend 2.0.40 refuses to start the
+GPU lane. With the guard relaxed (`docs/gpu-wsl2.md`) the GPU executes and
+produces the correct checksum, but the result is not a performance number:
 
-The build falls back to the CPU and prints the same checksum, which is useful
-for correctness and useless for a GPU number. Do not report a WSL2 run as GPU.
+| mode | ms | note |
+|---|---:|---|
+| CPU parallel, no `!` | 213 | the 32-vCPU path |
+| WSL2 patched GPU, `!` depth 8 | 9,008–9,313 | 100% util, 13 GB managed |
+| `pow2(20)`, CPU | 21,920 | regular access |
+| `pow2(20)`, patched GPU | 2,600 | 8.4x; regular access |
+
+The irregular matmul heap walk page-faults managed memory over PCIe; the
+regular `pow2` tree does not. Treat the WSL2 lane as correctness-only. Native
+Linux, a GPU-passthrough VM, or the Jetson is required for a meaningful GPU
+benchmark.
 
 ## Correctness gates used here
 

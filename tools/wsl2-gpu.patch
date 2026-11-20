@@ -1,0 +1,13 @@
+diff --git a/bend2/comp.ts b/bend2/comp.ts
+index 7472084..2085d79 100644
+--- a/bend2/comp.ts
++++ b/bend2/comp.ts
+@@ -5024,7 +5024,7 @@ static const char* gpu_probe(void) {
+   GPU_CHECK(cuDeviceGetAttribute, &managed,
+     CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS, gpu_dev);
+   if (managed == 0) {
+-    return "CUDA device lacks concurrent managed access (WSL2 lacks it)";
++    fputs("bend: warning: no concurrent managed access; continuing", stderr);
+   }
+   int l2 = 1 << 23;
+   cuDeviceGetAttribute(&l2, CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE, gpu_dev);

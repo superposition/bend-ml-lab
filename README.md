@@ -45,6 +45,14 @@ Checksums agree to ~3e-8 relative: Bend `268622200`, C/NumPy `268622208`; the
 difference is float accumulation order / FMA contraction, not a logic error.
 The checker and the runtime agree with each other.
 
+**GPU on WSL2 (patched, unsupported):** the 4090 reports
+`concurrentManagedAccess=0`, so Bend refuses the GPU lane by default. With the
+guard relaxed (`docs/gpu-wsl2.md`), `pow2(20)` runs **8.4x faster than CPU**, but
+the 1024 matmul takes **9.0 s** (correct checksum, 100% GPU utilization) against
+**0.213 s** on CPU-parallel — managed page migration dominates an irregular
+heap walk. WSL2 is a correctness lane, not a performance lane; native Linux is
+required for a meaningful GPU number.
+
 ### 2. Parallel scaling (`n = 1024`, Bend native)
 
 | fork depth | lanes | ms | speedup |
@@ -112,9 +120,12 @@ capability result and not a replication of any published WSP edit. See
    copyable, so weight updates are pure list rebuilds with no ownership
    puzzles. The price is O(n) list indexing; at 60 weights it is invisible
    (3.5 ms/epoch).
-7. **GPU cannot be measured on WSL2.** Bend builds and runs, but `+RTS --gpu`
-   fails with `bend: CUDA device lacks concurrent managed access (WSL2 lacks
-   it)`. A native Linux host is required for the GPU lane.
+7. **WSL2's GPU lane needs a patch, and is slow even then.** The 4090 reports
+   `concurrentManagedAccess=0`; Bend's guard is conservative (the runtime never
+   touches managed memory while a kernel runs), so relaxing it executes
+   correctly: `pow2` is 8.4x faster than CPU, but the 1024 matmul is 9.0 s vs
+   0.213 s CPU-parallel. Managed page migration, not arithmetic, is the limit.
+   Native Linux (or a GPU-passthrough VM) is required for a real number.
 8. **No Windows target.** WSL works; native Windows does not. CUDA/Metal need a
    native host anyway.
 9. **No laws yet.** `bend --check-only` passes on the safe core (`ALL PROOFS
@@ -158,6 +169,9 @@ bench/einsum/         Bend benchmark + C, Node, NumPy twins + runner + sweep
 train/main.bend       per-epoch loss/time CSV
 train/epoch_sweep.sh  1..64 epoch scaling table
 wsp/analyze.bend      stats, row scaling, random-direction control
+bench/einsum/gpu.bend GPU probe (`!`), built with the patched WSL2 compiler
+tools/wsl2-gpu.patch   relax the WSL2 CUDA guard (unsupported; docs/gpu-wsl2.md)
+docs/gpu-wsl2.md      why cma=0 on WSL2, the patch, and the measured result
 docs/bend-notes.md    language idioms and traps found while building this
 docs/einsum.md        equation -> kernel table and the generic-engine argument
 docs/training.md      model, gradients, epoch costs, checkpoint options

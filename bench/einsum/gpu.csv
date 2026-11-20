@@ -1,0 +1,5 @@
+mode,checksum,internal_ms,wall_s,note
+pow2_cpu,1048576,,21.92,32 vCPU
+pow2_gpu,1048576,,2.60,warm; 8.4x over CPU
+matmul_cpu_parallel,268622200,213,0.3,no `!`
+matmul_gpu_wsl2,268622200,9008,11.5,100% GPU util; 13 GB managed
