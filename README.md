@@ -181,6 +181,8 @@ train/epoch_sweep.sh  1..64 epoch scaling table
 wsp/analyze.bend      stats, row scaling, random-direction control
 bench/einsum/gpu.bend GPU probe (`!`), built with the patched WSL2 compiler
 bench/einsum/gpu_tile.bend final 2x2-tiled GPU matmul (95 ms, 1024 lanes)
+bench/gpu/device_mm.*  device-buffer effect called from Bend (16 ms warm)
+docs/device-buffers.md why the array block is contiguous and how the effect works
 tools/wsl2-gpu.patch   relax the WSL2 CUDA guard (unsupported; docs/gpu-wsl2.md)
 docs/gpu-wsl2.md      why cma=0 on WSL2, the patch, and the measured result
 docs/bend-notes.md    language idioms and traps found while building this
