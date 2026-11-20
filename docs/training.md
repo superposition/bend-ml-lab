@@ -94,25 +94,27 @@ pointers and a million `O(n)` walks. The right future trainer is batched: use
 `src/tensor.bend` for `W1`, `W2`, and the batch activations, and keep the
 epoch/session logic here.
 
-## Checkpoints (not implemented yet)
+## Checkpoint and resume
 
-There is no save/resume in v1. The options, in order of effort:
+Implemented as a **decimal Bend source file** (`train/save.bend` +
+`train/resume.bend`):
 
-1. **Decimal text.** `F32.show` writes a decimal string; `F32.read` parses one.
-   Easy, human-readable, and not bit-exact. For WSP this is usually fine
-   because a subsequent quantizer/loader dominates the error; record the
-   round-trip delta anyway.
-2. **Raw IEEE bytes via a foreign.** `F32.bits` is one-way in Base; there is no
-   `from_bits`. A five-line C foreign can bitcast `u32 -> f32`, and then
-   `File.write_at`/`File.read_at` give a binary checkpoint. This is the
-   bit-exact path.
-3. **Live process.** Keep the model in memory and expose a command loop; this
-   is the same architecture as `training/live_server.py` in the WSP stack and
-   avoids serialization entirely.
+1. Train 5 epochs, serialize the `Model` to `train/checkpoint.bend` with
+   `F32.show` (negative values wrapped in `F32.neg`), write it through
+   `Process.run("sh", ["-c", "cat > ..."])`.
+2. A second process imports the generated module and trains 5 more epochs.
+3. Compare with the 10-epoch in-process reference.
 
-A session runner that splits `N` epochs into chunks needs one of these. It also
-needs a stable RNG position: this trainer derives noise from the sample index, so
-resuming at epoch `k` needs no RNG state, only the weights.
+Result: `reference 0.0067563583`, `resume 0.0067563583` — no drift at the
+printed precision (`train/checkpoint.csv`, `train/checkpoint.sh`).
+
+Caveat: decimal text is not a guarantee of bit-exactness. It round-trips this
+trajectory exactly, but a bit-exact checkpoint needs `F32.from_bits` (absent
+from Base) or a foreign bitcast. The checkpoint is also executable source, so
+the compiler parses it; that is fine for a lab, not a general format.
+
+The stable-RNG property helps: noise is derived from the sample index, so
+resume needs only the weights, not an RNG state.
 
 ## Next steps
 
