@@ -126,3 +126,42 @@ resume needs only the weights, not an RNG state.
   a non-empty list.
 - Decimal checkpoint + `--resume`, with a round-trip test that asserts the
   reloaded model reproduces the same loss to a stated tolerance.
+
+
+## Batched 2-layer trainer (matmul path)
+
+`train/mlp_batch.bend` is the same 2-8-4 MLP trained with 64-sample
+mini-batches. Every gradient is a matmul:
+
+| step | operation |
+|---|---|
+| forward hidden | `matmul3(x, w1)` -> `h` |
+| forward output | `matmul3(h, w2)` -> `y` |
+| `dW2` | `matmul3_tn(h, dy)` |
+| `dh` | `matmul3_nt(dy, w2)` |
+| `dW1` | `matmul3_tn(x, dh)` |
+
+`mm3`, `mm3_tn` and `mm3_nt` return their inputs; the chain passes records
+(`F1`, `F2`, `LB`, ..., `R`) so no computed tuple is destructured. Bias add,
+ReLU, mask, column sums and SGD are array loops.
+
+**Latent bugs found by this experiment:** `T.relu` and `T.map_scale` were
+no-ops (they recursed without writing the transformed value). The batched loss
+did not move until they were fixed; both are corrected in `src/tensor.bend`.
+This is why the batched trainer is also a library test.
+
+Result, native build:
+
+| trainer | epochs | time | loss | objective |
+|---|---:|---:|---:|---|
+| batched, 64-sample mini-batches, lr 1.0 | 2,048 | **22 ms** | 0.000406 | MSE |
+| scalar, per-sample, lr 0.05 | 64 | 222 ms | 0.000487 | cross-entropy |
+
+The batched run is **10x faster to a comparable loss magnitude**, and 0.011 ms
+per epoch vs 3.5 ms. Caveat: the objectives differ (MSE vs cross-entropy) and
+the initializations differ, so the loss values are not a controlled parity
+test. The time gap is large enough to survive that caveat; a same-objective
+(softmax CE) batched run is the clean follow-up.
+
+Raw: [`train/mlp_batch.csv`](../train/mlp_batch.csv). Files:
+`train/mlp_batch.bend`, `src/tensor.bend` (`mm3*`, `relu`/`map_scale` fixes).

@@ -291,12 +291,12 @@ def relu.go(fuel: Nat, ar: Array<F32> & F32, +i: U32) -> Array<F32>:
     case 1n++p:
       match ar:
         case (a1, x):
-          relu.go(p, Array.get(F32, a1, U32.add(i, 1)), U32.add(i, 1))
+          relu.go(p, Array.get(F32, Array.set(F32, a1, i, relu.one(x)), U32.add(i, 1)), U32.add(i, 1))
 
 def relu(cells: U32, a: Array<F32>) -> Array<F32>:
   relu.go(U32.to_nat(cells), Array.get(F32, a, 0), 0)
 
-def map_scale.go(fuel: Nat, ar: Array<F32> & F32, +i: U32, s: F32) -> Array<F32>:
+def map_scale.go(fuel: Nat, ar: Array<F32> & F32, +i: U32, +s: F32) -> Array<F32>:
   match fuel:
     case 0n:
       match ar:
@@ -305,7 +305,7 @@ def map_scale.go(fuel: Nat, ar: Array<F32> & F32, +i: U32, s: F32) -> Array<F32>
     case 1n++p:
       match ar:
         case (a1, x):
-          map_scale.go(p, Array.get(F32, a1, U32.add(i, 1)), U32.add(i, 1), s)
+          map_scale.go(p, Array.get(F32, Array.set(F32, a1, i, F32.mul(x, s)), U32.add(i, 1)), U32.add(i, 1), s)
 
 def map_scale(cells: U32, a: Array<F32>, s: F32) -> Array<F32>:
   map_scale.go(U32.to_nat(cells), Array.get(F32, a, 0), 0, s)
@@ -997,3 +997,209 @@ def fnv(fuel: Nat, ar: Array<F32> & F32, +i: U32, h: U32) -> U32:
 
 def hash_bits(cells: U32, a: Array<F32>) -> U32:
   fnv(U32.to_nat(cells), Array.get(F32, a, 0), 0, 2166136261)
+
+# ---------------------------------------------------------------------------
+# Matmul variants that return their inputs (for batched training)
+# ---------------------------------------------------------------------------
+
+type T3 is Type:
+  T3{c: Array<F32>, a: Array<F32>, b: Array<F32>}
+
+def mm3(
+  fuel: Nat,
+  dr: Array<F32> & Array<F32> & F32,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32,
+  +row: U32,
+  +col: U32
+) -> T3:
+  match fuel:
+    case 0n:
+      match dr:
+        case (a1, b1, acc):
+          T3{c, a1, b1}
+    case 1n+q:
+      match dr:
+        case (a1, b1, acc):
+          p = U32.add(U32.mul(row, n), col)
+          c1 = Array.set(F32, c, p, acc)
+          +col1 = U32.add(col, 1)
+          +wrap = U32.is_eq(col1, n)
+          +row1 = U32.add(row, Bool.to_u32(wrap))
+          +col2 = U32.sub(col1, U32.mul(n, Bool.to_u32(wrap)))
+          +ai = U32.mul(row1, k)
+          mm3(
+            q,
+            dot(
+              U32.to_nat(k),
+              Array.get(F32, a1, ai),
+              Array.get(F32, b1, col2),
+              ai,
+              col2,
+              1,
+              n,
+              0.0
+            ),
+            c1,
+            m,
+            n,
+            k,
+            row1,
+            col2
+          )
+
+def matmul3(a: Array<F32>, b: Array<F32>, c: Array<F32>, +m: U32, +n: U32, +k: U32) -> T3:
+  mm3(
+    U32.to_nat(U32.mul(m, n)),
+    dot(
+      U32.to_nat(k),
+      Array.get(F32, a, 0),
+      Array.get(F32, b, 0),
+      0,
+      0,
+      1,
+      n,
+      0.0
+    ),
+    c,
+    m,
+    n,
+    k,
+    0,
+    0
+  )
+
+def mm3_tn(
+  fuel: Nat,
+  dr: Array<F32> & Array<F32> & F32,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32,
+  +row: U32,
+  +col: U32
+) -> T3:
+  match fuel:
+    case 0n:
+      match dr:
+        case (a1, b1, acc):
+          T3{c, a1, b1}
+    case 1n+q:
+      match dr:
+        case (a1, b1, acc):
+          p = U32.add(U32.mul(row, n), col)
+          c1 = Array.set(F32, c, p, acc)
+          +col1 = U32.add(col, 1)
+          +wrap = U32.is_eq(col1, n)
+          +row1 = U32.add(row, Bool.to_u32(wrap))
+          +col2 = U32.sub(col1, U32.mul(n, Bool.to_u32(wrap)))
+          mm3_tn(
+            q,
+            dot(
+              U32.to_nat(k),
+              Array.get(F32, a1, row1),
+              Array.get(F32, b1, col2),
+              row1,
+              col2,
+              m,
+              n,
+              0.0
+            ),
+            c1,
+            m,
+            n,
+            k,
+            row1,
+            col2
+          )
+
+def matmul3_tn(a: Array<F32>, b: Array<F32>, c: Array<F32>, +m: U32, +n: U32, +k: U32) -> T3:
+  mm3_tn(
+    U32.to_nat(U32.mul(m, n)),
+    dot(
+      U32.to_nat(k),
+      Array.get(F32, a, 0),
+      Array.get(F32, b, 0),
+      0,
+      0,
+      m,
+      n,
+      0.0
+    ),
+    c,
+    m,
+    n,
+    k,
+    0,
+    0
+  )
+
+# C[M,N] = A[M,K] * B[N,K]^T.
+def mm3_nt(
+  fuel: Nat,
+  dr: Array<F32> & Array<F32> & F32,
+  c: Array<F32>,
+  +m: U32,
+  +n: U32,
+  +k: U32,
+  +row: U32,
+  +col: U32
+) -> T3:
+  match fuel:
+    case 0n:
+      match dr:
+        case (a1, b1, acc):
+          T3{c, a1, b1}
+    case 1n+q:
+      match dr:
+        case (a1, b1, acc):
+          p = U32.add(U32.mul(row, n), col)
+          c1 = Array.set(F32, c, p, acc)
+          +col1 = U32.add(col, 1)
+          +wrap = U32.is_eq(col1, n)
+          +row1 = U32.add(row, Bool.to_u32(wrap))
+          +col2 = U32.sub(col1, U32.mul(n, Bool.to_u32(wrap)))
+          +ai = U32.mul(row1, k)
+          +bi = U32.mul(col2, k)
+          mm3_nt(
+            q,
+            dot(
+              U32.to_nat(k),
+              Array.get(F32, a1, ai),
+              Array.get(F32, b1, bi),
+              ai,
+              bi,
+              1,
+              1,
+              0.0
+            ),
+            c1,
+            m,
+            n,
+            k,
+            row1,
+            col2
+          )
+
+def matmul3_nt(a: Array<F32>, b: Array<F32>, c: Array<F32>, +m: U32, +n: U32, +k: U32) -> T3:
+  mm3_nt(
+    U32.to_nat(U32.mul(m, n)),
+    dot(
+      U32.to_nat(k),
+      Array.get(F32, a, 0),
+      Array.get(F32, b, 0),
+      0,
+      0,
+      1,
+      1,
+      0.0
+    ),
+    c,
+    m,
+    n,
+    k,
+    0,
+    0
+  )

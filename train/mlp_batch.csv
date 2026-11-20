@@ -1,0 +1,3 @@
+trainer,epochs,time_ms,final_loss,objective,notes
+batched,2048,22,0.0004058,MSE,64-sample mini-batches; lr=1.0; native
+scalar,64,222,0.0004871,cross-entropy,per-sample SGD; lr=0.05; native

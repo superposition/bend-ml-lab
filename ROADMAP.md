@@ -46,7 +46,7 @@ unless stated; see the linked docs for the full tables.
 | [#5](https://github.com/superposition/bend-ml-lab/issues/5) | Measure the proof checker cost on kernel laws | proofs, bench | S | Done |
 | [#6](https://github.com/superposition/bend-ml-lab/issues/6) | Differential fuzz of C / JS / GPU tensor kernels | numerics | M | Done (rectangular corpus) |
 | [#7](https://github.com/superposition/bend-ml-lab/issues/7) | Prove softmax sums to 1 for a non-empty list | proofs | M | Negative |
-| [#8](https://github.com/superposition/bend-ml-lab/issues/8) | Batched trainer: matmul path vs scalar SGD | training, bench | M | Todo |
+| [#8](https://github.com/superposition/bend-ml-lab/issues/8) | Batched trainer: matmul path vs scalar SGD | training, bench | M | Done (MSE vs CE caveat) |
 | [#9](https://github.com/superposition/bend-ml-lab/issues/9) | Parallel batch gradients with fork/join | training, runtime | L | Todo |
 | [#10](https://github.com/superposition/bend-ml-lab/issues/10) | Real-checkpoint WSP analyst (export → Bend → import → judge) | WSP | L | Done |
 | [#11](https://github.com/superposition/bend-ml-lab/issues/11) | Requantization noise floor for a no-op WSP edit | WSP, numerics | M | Done |
