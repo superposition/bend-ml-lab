@@ -14,6 +14,10 @@ reading the landing page.
 Bend is roughly ten weeks old as a 2.x line. Everything here is a measurement
 of *this* version, not a claim about where the language will be next month.
 
+**Roadmap:** [`ROADMAP.md`](ROADMAP.md) · tracking issue
+[#18](https://github.com/superposition/bend-ml-lab/issues/18) · milestone
+`Experiment map`. A negative result is a result.
+
 ## What is here
 
 | Track | Question | Entry point |
@@ -179,6 +183,7 @@ docs/bend-notes.md    language idioms and traps found while building this
 docs/einsum.md        equation -> kernel table and the generic-engine argument
 docs/training.md      model, gradients, epoch costs, checkpoint options
 docs/wsp.md           analyst-vs-judge protocol and the integrity traps
+ROADMAP.md            the 17 experiments, acceptance rules, running order
 ```
 
 ## Scope and honesty
