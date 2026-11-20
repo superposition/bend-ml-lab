@@ -56,8 +56,10 @@ The checker and the runtime agree with each other.
 guard relaxed (`docs/gpu-wsl2.md`), the tiled 2x2 kernel runs the 1024 matmul in
 **87–107 ms** (median 95 ms) against **213 ms** on 32-vCPU parallel — **2.2x
 faster on compute**, 99x faster than the first working GPU version (9.0 s).
-Single-process wall is 0.69 s vs 0.3 s because GPU setup is ~0.5 s; repeated
-matmuls amortize it. A 4x4 tiled variant halves reads again but needs four
+A C effect over Bend arrays now copies to real device buffers: **16 ms warm**
+(195 ms cold, context setup) with the same checksum, vs 95 ms for the tree.
+Single-process wall for the tree path is 0.69 s vs 0.3 s because GPU setup is
+~0.5 s; repeated matmuls amortize it. A 4x4 tiled variant halves reads again but needs four
 times fewer lanes and lands at ~98 ms — a tie, which is why 2x2/1,024 lanes is
 the recommended config. Native Linux remains the supported path.
 

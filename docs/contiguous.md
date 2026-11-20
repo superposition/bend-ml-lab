@@ -50,3 +50,12 @@ That is a runtime/effect change, not a Bend program. The ceiling says it is
 worth it: 5.3 ms including copies, 0.73 ms kernel-only, against 95 ms.
 
 Raw data: [`bench/gpu/contig.csv`](../bench/gpu/contig.csv).
+
+
+## Integrated prototype (2026-11-20)
+
+`docs/device-buffers.md`: a C effect now copies a Bend `Array<F32>` to device
+buffers and back. Warm 1024x1024: **16 ms**, checksum 268622200, against 95 ms
+for the tree and 5.31 ms for the standalone CUDA path. The effect is native-only
+and uses Bend 2.0.40 internals, but it proves the integration shape: the array
+block is already contiguous, so no new value kind is required.
