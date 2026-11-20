@@ -1,5 +1,5 @@
 mode,checksum,ms,note
-cold,268622200,195,first call includes CUDA context setup
-warm,268622200,16,cached context/module; host-device copies and array conversion
+cold,268622200,226,CUDA context + module load + first allocation
+warm,268622200,5,median of in-process reps; observed range 3-18
 tree,268622200,95,Bend 2x2-tiled GPU kernel
 standalone,268622200,5.31,contiguous CUDA device buffers + copies

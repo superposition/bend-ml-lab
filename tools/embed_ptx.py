@@ -102,19 +102,29 @@ Term device_mm_run(Env e, Term* f, IoWork* w) {
     err_fail("device_mm: array too small");
   }
   size_t ab = (size_t)m * k * 4, bb = (size_t)k * n * 4, cbts = (size_t)m * n * 4;
-  float* hA = malloc(ab), *hB = malloc(bb), *hC = malloc(cbts);
-  if (!hA || !hB || !hC) err_fail("device_mm: host allocation failed");
   u64 la = blk_loc(e.mem, f[0]), lb = blk_loc(e.mem, f[1]);
   u32* ea = (u32*)(e.mem + la);
   u32* eb = (u32*)(e.mem + lb);
-  for (size_t i = 0; i < (size_t)m * k; i++) hA[i] = f32_unbox((u64)ea[i]);
-  for (size_t i = 0; i < (size_t)k * n; i++) hB[i] = f32_unbox((u64)eb[i]);
 
-  CUdeviceptr dA = 0, dB = 0, dC = 0;
-  if (p_cuMemAlloc(&dA, ab) || p_cuMemAlloc(&dB, bb) || p_cuMemAlloc(&dC, cbts)) {
-    err_fail("device_mm: device allocation failed");
+  static CUdeviceptr dA, dB, dC;
+  static size_t capA, capB, capC;
+  if (ab > capA) {
+    if (dA) p_cuMemFree(dA);
+    if (p_cuMemAlloc(&dA, ab)) err_fail("device_mm: device allocation failed");
+    capA = ab;
   }
-  if (p_cuMemcpyHtoD(dA, hA, ab) || p_cuMemcpyHtoD(dB, hB, bb)) {
+  if (bb > capB) {
+    if (dB) p_cuMemFree(dB);
+    if (p_cuMemAlloc(&dB, bb)) err_fail("device_mm: device allocation failed");
+    capB = bb;
+  }
+  if (cbts > capC) {
+    if (dC) p_cuMemFree(dC);
+    if (p_cuMemAlloc(&dC, cbts)) err_fail("device_mm: device allocation failed");
+    capC = cbts;
+  }
+  /* the Array<F32> block is already f32 bytes: copy it straight to the device */
+  if (p_cuMemcpyHtoD(dA, ea, ab) || p_cuMemcpyHtoD(dB, eb, bb)) {
     err_fail("device_mm: copy in failed");
   }
   int nn = (int)n;
@@ -122,15 +132,12 @@ Term device_mm_run(Env e, Term* f, IoWork* w) {
   if (p_cuLaunchKernel(mm_fn, n / 16, n / 16, 1, 16, 16, 1, 0, NULL, args, NULL)) {
     err_fail("device_mm: launch failed");
   }
-  if (p_cuCtxSynchronize() || p_cuMemcpyDtoH(hC, dC, cbts)) {
-    err_fail("device_mm: copy out failed");
-  }
   Term out = blk_copy(e, f[2]);
   u64 lc = blk_loc(e.mem, out);
   u32* ec = (u32*)(e.mem + lc);
-  for (size_t i = 0; i < (size_t)m * n; i++) ec[i] = (u32)f32_rewrap(hC[i]);
-  p_cuMemFree(dA); p_cuMemFree(dB); p_cuMemFree(dC);
-  free(hA); free(hB); free(hC);
+  if (p_cuCtxSynchronize() || p_cuMemcpyDtoH(ec, dC, cbts)) {
+    err_fail("device_mm: copy out failed");
+  }
   return out;
 }
 

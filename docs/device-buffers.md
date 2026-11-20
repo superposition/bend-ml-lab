@@ -21,15 +21,16 @@ into a new `Array<F32>`.
 
 | mode | ms | note |
 |---|---:|---|
-| cold | 195 | first call: CUDA context + module load |
-| **warm** | **16** | cached context; includes host↔device copies and array conversion |
+| cold | 226 | first call: CUDA context + module load + first allocation |
+| **warm** | **5** | median of in-process reps; observed 3–18 |
 | Bend tree (2x2) | 95 | managed heap, no copies |
-| standalone CUDA | 5.31 | no Bend array conversion; direct host buffers |
+| standalone CUDA | 5.31 | direct host buffers |
 
-The warm effect is **5.9x faster than the tree** and produces the exact
-checksum. The remaining 11 ms over the standalone is the host↔device copies,
-the 1M-element host conversion, and `blk_copy`; a runtime-level path could
-remove most of it.
+The warm effect is **~18x faster than the tree** and produces the exact
+checksum. It is at the standalone standard: the array block is copied straight
+to the device, buffers are cached, and the output goes straight into
+`blk_copy`. The 3–18 ms spread is GPU clock/scheduling noise at the 1 ms
+`IO.now` resolution; the median is 5 ms.
 
 ## Limits
 

@@ -7,6 +7,24 @@ def Device.mm(a: Array<F32>, b: Array<F32>, c: Array<F32>, m: U32, n: U32, k: U3
   import "./device_mm.c"
   import "./device_mm.js"
 
+def reps(k: Nat) -> IO(Unit):
+  match k:
+    case 0n:
+      IO.pure(Unit, Unit{})
+    case 1n++p:
+      do IO<Unit>:
+        +n : U32 = 1024
+        +cells : U32 = U32.mul(n, n)
+        a : Array<F32> = T.gen(cells, 7)
+        b : Array<F32> = T.gen(cells, 11)
+        c0 : Array<F32> = Array.new(F32, U32.log2(cells), 0.0)
+        t0 : Nat <- IO.now()
+        c : Array<F32> <- Device.mm(a, b, c0, n, n, n)
+        t1 : Nat <- IO.now()
+        v : F32 = T.checksum(cells, c)
+        IO.print("rep," ++ F32.show(v) ++ "," ++ Nat.show(Nat.sub(t1, t0)))
+        reps(p)
+
 def main() -> IO(Unit):
   do IO<Unit>:
     +n : U32 = 1024
@@ -28,3 +46,4 @@ def main() -> IO(Unit):
     t3 : Nat <- IO.now()
     v2 : F32 = T.checksum(cells, d)
     IO.print("warm," ++ F32.show(v2) ++ "," ++ Nat.show(Nat.sub(t3, t2)))
+    reps(4n)
