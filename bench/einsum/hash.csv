@@ -1,0 +1,11 @@
+backend,threads,case,hash
+C,1,positive,1621946231
+C,1,negative,4117622267
+Node,1,positive,1621946231
+Node,1,negative,4117622267
+Bend,1,positive,1621946231
+Bend,1,negative,4117622267
+Bend,32,positive,1621946231
+Bend,32,negative,4117622267
+Bend-GPU,1,positive,1621946231
+Bend-GPU,1,negative,4117622267

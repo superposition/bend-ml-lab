@@ -982,3 +982,18 @@ def sum_list(xs: List<&1, F32>, acc: F32) -> F32:
       acc
     case h <> t:
       sum_list(t, F32.add(acc, h))
+
+# FNV-1a over the raw F32 bits, for cross-backend comparison.
+def fnv(fuel: Nat, ar: Array<F32> & F32, +i: U32, h: U32) -> U32:
+  match fuel:
+    case 0n:
+      h
+    case 1n+p:
+      match ar:
+        case (a1, x):
+          +b = F32.bits(x)
+          +h2 = U32.mul(U32.xor(h, b), 16777619)
+          fnv(p, Array.get(F32, a1, U32.add(i, 1)), U32.add(i, 1), h2)
+
+def hash_bits(cells: U32, a: Array<F32>) -> U32:
+  fnv(U32.to_nat(cells), Array.get(F32, a, 0), 0, 2166136261)
