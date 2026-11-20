@@ -8,8 +8,8 @@ reading the landing page.
 - Bend **2.0.40** (`bendlang/bend`), Apache-2.0.
 - Verified **2026-11-19** on WSL2 Ubuntu 22.04, 32 vCPU, RTX 4090 (CUDA 12.8),
   clang 21.1.8, Node 12, NumPy 2.2.6.
-- All numbers below are single-run medians from `bench/einsum/run.sh`; scripts
-  and checksums are in the repo.
+- Numbers below are one run each from `bench/einsum/run.sh`; repeated Bend and
+  C runs varied by up to ~10%. Scripts, checksums and raw CSV are in the repo.
 
 Bend is roughly ten weeks old as a 2.x line. Everything here is a measurement
 of *this* version, not a claim about where the language will be next month.
