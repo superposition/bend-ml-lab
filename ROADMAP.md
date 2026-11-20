@@ -47,10 +47,10 @@ unless stated; see the linked docs for the full tables.
 | [#6](https://github.com/superposition/bend-ml-lab/issues/6) | Differential fuzz of C / JS / GPU tensor kernels | numerics | M | Done (rectangular corpus) |
 | [#7](https://github.com/superposition/bend-ml-lab/issues/7) | Prove softmax sums to 1 for a non-empty list | proofs | M | Negative |
 | [#8](https://github.com/superposition/bend-ml-lab/issues/8) | Batched trainer: matmul path vs scalar SGD | training, bench | M | Done (MSE vs CE caveat) |
-| [#9](https://github.com/superposition/bend-ml-lab/issues/9) | Parallel batch gradients with fork/join | training, runtime | L | Todo |
+| [#9](https://github.com/superposition/bend-ml-lab/issues/9) | Parallel batch gradients with fork/join | training, runtime | L | Negative |
 | [#10](https://github.com/superposition/bend-ml-lab/issues/10) | Real-checkpoint WSP analyst (export → Bend → import → judge) | WSP | L | Done |
 | [#11](https://github.com/superposition/bend-ml-lab/issues/11) | Requantization noise floor for a no-op WSP edit | WSP, numerics | M | Done |
-| [#12](https://github.com/superposition/bend-ml-lab/issues/12) | Same engine vs second engine: how much does the judge move a WSP score? | WSP, bench | M | Todo |
+| [#12](https://github.com/superposition/bend-ml-lab/issues/12) | Same engine vs second engine: how much does the judge move a WSP score? | WSP, bench | M | Blocked (no 2nd engine) |
 | [#13](https://github.com/superposition/bend-ml-lab/issues/13) | Checkpoint and resume an epoch session | training | M | Done |
 | [#14](https://github.com/superposition/bend-ml-lab/issues/14) | Contiguous device tensor runtime (remove the tree for GPU) | runtime, GPU | L | Done (ceiling measured) |
 | [#15](https://github.com/superposition/bend-ml-lab/issues/15) | Tree cursor / zipper for sequential traversal | runtime | L | Negative |
